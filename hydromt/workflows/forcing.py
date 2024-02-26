@@ -311,7 +311,10 @@ def pet(
     freq: str = None,
     resample_kwargs: dict = None,
     logger=logger,
+    k:float=None,
+    hargreaves_method:int=0
 ) -> xarray.DataArray:
+    
     """Determine reference evapotranspiration.
 
     (lazy reprojection on model grid and resampling of time dimension to frequency).
@@ -333,7 +336,7 @@ def pet(
     dem_model : xarray.DataArray
         DataArray of the target resolution and projection, contains elevation
         data
-    method : {'debruin', 'makkink', "penman-monteith_rh_simple", "penman-monteith_tdew"}
+    method : {'debruin', 'makkink', "penman-monteith_rh_simple", "penman-monteith_tdew", "hargreaves"}
         Potential evapotranspiration method.
         if penman-monteith is used, requires the installation of the pyet package.
     reproj_method: str, optional
@@ -405,6 +408,25 @@ def pet(
         )
     elif method == "makkink":
         pet_out = pet_makkink(temp, ds["press"], ds["kin"], timestep=timestep)
+    
+    elif "hargreaves" in method:
+        
+        logger.info("Calculating Hargreaves ref evaporation")
+        
+        if k is None:
+            k=0.0135
+            logger.info('Hargreaves method default coefficient is used: k=0.0135.')
+        
+        
+        pet_out = pet_hargreaves(
+                            temp,
+                            temp_max=ds["temp_max"],
+                            temp_min=ds["temp_min"],
+                            k=k,
+                            method=hargreaves_method,
+                            clip_zeros=True
+                        )
+    
     elif "penman-monteith" in method:
         logger.info("Calculating Penman-Monteith ref evaporation")
         # Add wind
@@ -454,6 +476,7 @@ def pet(
                 "makking",
                 "penman-monteith_rh_simple",
                 "penman-monteith_tdew",
+                "hargreaves"
             ]
             raise ValueError(f"Unknown pet method, select from {methods}")
 
@@ -699,6 +722,53 @@ def pm_fao56(
     pet = pyet.utils.clip_zeros(pet, True)
 
     return pet.rename("pet")
+
+#TODO: docs
+
+#def hargreaves(tmean, tmax, tmin, lat, k=0.0135, method=0, clip_zero=True):
+def pet_hargreaves(
+    temp: xarray.DataArray,
+    temp_max: xarray.DataArray,
+    temp_min: xarray.DataArray,
+    k:float=0.0135,
+    method:int=1,
+    clip_zeros:bool=True) -> xarray.DataArray:
+    
+    """Estimate daily reference evapotranspiration (ETo).
+    
+    Parameters
+    ----------
+    tmean: pandas.Series/xarray.DataArray
+        average day temperature [°C]
+    tmax: float/pandas.Series/xarray.DataArray
+        maximum day temperature [°C]
+    tmin: float/pandas.Series/xarray.DataArray
+        minimum day temperature [°C]
+    lat: float/xarray.DataArray
+        the site latitude [rad]
+    k: float, optional
+        calirbation coefficient [-]
+    method: float, optional
+        0 => after :cite:t:`jensen_evaporation_2016`
+        1 => after :cite:t:`mcmahon_estimating_2013`
+    clip_zero: bool, optional
+        if True, replace all negative values with 0.
+
+    Returns
+    -------
+    float/pandas.Series/xarray.DataArray containing the calculated
+            Potential evapotranspiration [mm d-1].
+    """
+    
+    pet = pyet.radiation.hargreaves(tmean=temp, 
+                                    tmax=temp_max, 
+                                    tmin=temp_min, 
+                                    lat=temp.raster.y_dim,
+                                    k=k,
+                                    method=method,
+                                    clip_zeros=clip_zeros)
+    
+    return pet
 
 
 def resample_time(
