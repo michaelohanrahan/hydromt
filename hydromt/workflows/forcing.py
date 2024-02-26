@@ -322,15 +322,21 @@ def pet(
     Parameters
     ----------
     ds : xarray.Dataset
-        Dataset with climate variables: pressure [hPa], global radiation [W m-2],
-        TOA incident solar radiation [W m-2], wind [m s-1]
+        Dataset with climate variables: 
+         - pressure [hPa], 
+         - global radiation [W m-2],
+         - TOA incident solar radiation [W m-2], 
+         - wind [m s-1]
 
-        * Required variables: {"temp", "press" or "press_msl", "kin"}
+        * Required variable: {"temp", "press" or "press_msl", "kin"}
         * additional variables for debruin: {"kout"}
         * additional variables for penman-monteith_rh_simple:
             {"temp_min", "temp_max", "wind" or "wind_u"+"wind_v", "rh"}
         * additional variables for penman-monteith_tdew:
             {"temp_min", "temp_max", "wind" or "wind_u"+"wind_v", "temp_dew"}
+        * additional variables for hargreaves:
+            {"temp_min", "temp_max"}
+    
     temp : xarray.DataArray
         DataArray with temperature on model grid resolution [°C]
     dem_model : xarray.DataArray
@@ -360,6 +366,7 @@ def pet(
     pet_out : xarray.DataArray (lazy)
         reference evapotranspiration
     """
+    
     # # resample in time
     if resample_kwargs is None:
         resample_kwargs = {}
