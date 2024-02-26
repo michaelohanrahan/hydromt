@@ -413,6 +413,7 @@ def pet(
             ds["kout"],
             timestep=timestep,
         )
+        
     elif method == "makkink":
         pet_out = pet_makkink(temp, ds["press"], ds["kin"], timestep=timestep)
     
